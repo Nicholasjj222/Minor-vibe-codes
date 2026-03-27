@@ -1,0 +1,27 @@
+sessionrepository.kt
+
+
+ package com.vibe.repository
+
+import com.vibe.model.Session
+import org.springframework.stereotype.Repository
+import java.util.concurrent.ConcurrentHashMap
+
+@Repository
+class SessionRepository {
+    private val sessions = ConcurrentHashMap<Int, Session>()
+    private var nextId = 1
+
+    fun save(session: Session): Session {
+        val newSession = session.copy(id = nextId++)
+        sessions[newSession.id] = newSession
+        return newSession
+    }
+
+    fun findAll(): List<Session> = sessions.values.toList()
+
+    fun findByUser(userId: Int): List<Session> =
+        sessions.values.filter { it.userId == userId }
+
+    fun delete(sessionId: Int): Boolean = sessions.remove(sessionId) != null
+}
