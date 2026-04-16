@@ -1,0 +1,90 @@
+use std::fs;
+use std::path::Path;
+use colored::*;
+
+// Struct
+struct Category {
+    name: String,
+    extensions: Vec<String>,
+}
+
+fn main() {
+    println!("{}", "Rust File Organizer Started...".green().bold());
+
+    let categories = vec![
+        Category {
+            name: "Images".to_string(),
+            extensions: vec!["jpg", "png", "jpeg", "gif"].into_iter().map(String::from).collect(),
+        },
+        Category {
+            name: "Documents".to_string(),
+            extensions: vec!["pdf", "docx", "txt"].into_iter().map(String::from).collect(),
+        },
+        Category {
+            name: "Videos".to_string(),
+            extensions: vec!["mp4", "mkv", "avi"].into_iter().map(String::from).collect(),
+        },
+        Category {
+            name: "Code".to_string(),
+            extensions: vec!["rs", "js", "ts", "py", "java"].into_iter().map(String::from).collect(),
+        },
+    ];
+
+    let folder = "./files";
+    organize_files(folder, &categories);
+}
+
+fn organize_files(folder: &str, categories: &Vec<Category>) {
+    let paths = match fs::read_dir(folder) {
+        Ok(p) => p,
+        Err(e) => {
+            println!("{}", format!("Error reading directory: {}", e).red());
+            return;
+        }
+    };
+
+    for path in paths {
+        if let Ok(entry) = path {
+            let file_path = entry.path();
+
+            if file_path.is_file() {
+                if let Some(extension) = file_path.extension() {
+                    let ext = extension.to_string_lossy().to_lowercase();
+
+                    for category in categories {
+                        if category.extensions.contains(&ext) {
+                            move_file(&file_path, &category.name);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn move_file(file_path: &Path, category: &str) {
+    let target_dir = format!("./files/{}", category);
+
+    if let Err(e) = fs::create_dir_all(&target_dir) {
+        println!("{}", format!("Error creating directory: {}", e).red());
+        return;
+    }
+
+    let file_name = match file_path.file_name() {
+        Some(name) => name,
+        None => return,
+    };
+
+    let new_path = Path::new(&target_dir).join(file_name);
+
+    match fs::rename(file_path, &new_path) {
+        Ok(_) => println!(
+            "{} {} {}",
+            "Moved".cyan(),
+            format!("{:?}", file_name).yellow(),
+            format!("-> {}", category).green()
+        ),
+        Err(e) => println!("{}", format!("Error moving file: {}", e).red()),
+    }
+}
