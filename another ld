@@ -1,0 +1,129 @@
+
+
+fn main() {
+    println!("{}", " Rust File Organizer v2.0".bright_green().bold());
+
+    // Start timer
+    let start = Instant::now();
+
+    // Read CLI arguments
+    let args: Vec<String> = env::args().collect();
+
+    if args.len() < 2 {
+        println!("{}", " Usage: organizer <folder_path>".red());
+        return;
+    }
+
+    let folder = &args[1];
+
+    println!(
+        "{} {}",
+        "📂 Target directory:".cyan(),
+        folder.yellow().bold()
+    );
+
+    // Check if path exists
+    if !std::path::Path::new(folder).exists() {
+        println!("{}", " Error: Folder does not exist!".red());
+        return;
+    }
+
+    // Categories
+    let categories = vec![
+        ("Images", vec!["jpg", "png", "jpeg", "gif"]),
+        ("Documents", vec!["pdf", "docx", "txt"]),
+        ("Videos", vec!["mp4", "mkv", "avi"]),
+        ("Code", vec!["rs", "js", "ts", "py", "java"]),
+    ];
+
+    println!("{}", "⚙️ Initializing categories...".blue());
+
+    let mut total_files = 0;
+    let mut moved_files = 0;
+
+    let paths = match std::fs::read_dir(folder) {
+        Ok(p) => p,
+        Err(e) => {
+            println!("{}", format!(" Failed to read directory: {}", e).red());
+            return;
+        }
+    };
+
+    println!("{}", "🔍 Scanning files...".blue());
+
+    for path in paths {
+        if let Ok(entry) = path {
+            let file_path = entry.path();
+
+            if file_path.is_file() {
+                total_files += 1;
+
+                let extension = match file_path.extension() {
+                    Some(ext) => ext.to_string_lossy().to_lowercase(),
+                    None => {
+                        println!("{}", " Skipped file with no extension".yellow());
+                        continue;
+                    }
+                };
+
+                let mut matched = false;
+
+                for (category, exts) in &categories {
+                    if exts.contains(&extension.as_str()) {
+                        let target_dir = format!("{}/{}", folder, category);
+
+                        if let Err(e) = std::fs::create_dir_all(&target_dir) {
+                            println!("{}", format!("Dir error: {}", e).red());
+                            continue;
+                        }
+
+                        let new_path = std::path::Path::new(&target_dir)
+                            .join(file_path.file_name().unwrap());
+
+                        match std::fs::rename(&file_path, &new_path) {
+                            Ok(_) => {
+                                println!(
+                                    "{} {} {}",
+                                    "✔ Moved".green(),
+                                    file_path.file_name().unwrap().to_string_lossy().yellow(),
+                                    format!("→ {}", category).cyan()
+                                );
+                                moved_files += 1;
+                            }
+                            Err(e) => println!("{}", format!(" Move error: {}", e).red()),
+                        }
+
+                        matched = true;
+                        break;
+                    }
+                }
+
+                if !matched {
+                    println!(
+                        "{} {}",
+                        "Unrecognized file:".yellow(),
+                        file_path.file_name().unwrap().to_string_lossy()
+                    );
+                }
+            }
+        }
+    }
+
+    // End timer
+    let duration = start.elapsed();
+
+    println!("\n{}", " Summary".bold().underline());
+    println!("{} {}", "Total files scanned:".cyan(), total_files);
+    println!("{} {}", "Files moved:".green(), moved_files);
+    println!(
+        "{} {:.2?}",
+        "⏱ Execution time:".magenta(),
+        duration
+    );
+
+    if moved_files == 0 {
+        println!("{}", "No files were moved.".yellow());
+    } else {
+        println!("{}", " Organization complete!".bright_green().bold());
+    }
+}
